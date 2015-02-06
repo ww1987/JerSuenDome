@@ -9,7 +9,6 @@ import android.graphics.Paint;
 import android.util.AttributeSet;
 import android.view.MotionEvent;
 import android.view.View;
-import android.widget.Toast;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -47,6 +46,20 @@ public class LockPatternView extends View {
             initPoints();
         }
         points2Canvas(canvas);
+
+        if(pointList.size()>1){
+            Point a = pointList.get(0);
+            for (int i = 0; i < pointList.size(); i++) {
+                Point b = pointList.get(i);
+                line2Canvas(canvas,a,b);
+                a = b;
+            }
+
+            if(movingNoPoint){
+                line2Canvas(canvas,a,new Point(movingX,movingY));
+            }
+        }
+
     }
 
     /**
@@ -58,11 +71,11 @@ public class LockPatternView extends View {
             for(int j = 0;j< points[i].length;j++){
                 Point  point = points[i][j];
                 if(point.state == Point.STATE_NORMAL){
-                    canvas.drawBitmap(pointNormal,point.x - bitmapR,point.y + bitmapR,paint);
+                    canvas.drawBitmap(pointNormal,point.x - bitmapR,point.y - bitmapR,paint);
                 }else if(point.state == Point.STATE_PRESSED){
-                    canvas.drawBitmap(pointPressed,point.x - bitmapR,point.y + bitmapR,paint);
+                    canvas.drawBitmap(pointPressed,point.x - bitmapR,point.y - bitmapR,paint);
                 }else{
-                    canvas.drawBitmap(pointError,point.x - bitmapR,point.y + bitmapR,paint);
+                    canvas.drawBitmap(pointError,point.x - bitmapR,point.y - bitmapR,paint);
                 }
             }
         }
@@ -76,14 +89,19 @@ public class LockPatternView extends View {
      */
     private void line2Canvas(Canvas canvas,Point a,Point b){
 
-        double lineLenght = Point.distance(a,b);
+        double lineLenght = Point.distance(a.x, a.y, b.x, b.y);
+        float degrees = Point.getDegrees(a, b);
+        canvas.rotate(degrees,a.x,a.y);
         if(a.state == Point.STATE_PRESSED){
-            matrix.setScale((float) lineLenght/pointPressed.getWidth(),1);
-            matrix.postTranslate(a.x,a.y);
+            matrix.setScale((float) lineLenght/linePressed.getWidth(),1);
+            matrix.postTranslate(a.x-linePressed.getWidth()/2,a.y-linePressed.getHeight()/2);
             canvas.drawBitmap(linePressed,matrix,paint);
         }else{
-
+            matrix.setScale((float) lineLenght/lineError.getWidth(),1);
+            matrix.postTranslate(a.x-lineError.getWidth()/2,a.y-lineError.getHeight()/2);
+            canvas.drawBitmap(lineError,matrix,paint);
         }
+        canvas.rotate(-degrees,a.x,a.y);
     }
     /**
      * 初始化点
@@ -91,7 +109,7 @@ public class LockPatternView extends View {
     private void initPoints() {
         wight = getWidth();
         height = getHeight();
-
+        movingNoPoint = true;
 
         if(wight>height){
         //横屏
@@ -127,11 +145,14 @@ public class LockPatternView extends View {
         points[2][2] = new Point(offsetsX + wight - wight / 4,offsetsY + wight - wight / 4);
 
         bitmapR = pointNormal.getWidth()/2;
+
+        isInit = true;
     }
 
     @Override
     public boolean onTouchEvent(MotionEvent event) {
         movingNoPoint = false;
+        isFinish = false;
         movingX = event.getX();
         movingY = event.getY();
         Point point = null;
@@ -173,7 +194,7 @@ public class LockPatternView extends View {
 
             if(pointList.size()<2){
                 resetPoint();
-            }else if(pointList.size() < POINT_SIZE && pointList.size() >2){
+            }else if(pointList.size() < POINT_SIZE && pointList.size() >1){
                 errorPoint();
             }
         }
@@ -184,6 +205,9 @@ public class LockPatternView extends View {
 
 
     public void resetPoint(){
+        for(Point point :pointList){
+            point.state = Point.STATE_NORMAL;
+        }
         pointList.clear();
     }
 
@@ -193,6 +217,7 @@ public class LockPatternView extends View {
         }
     }
     private Point checkSelectedPoint(){
+
         for(int i=0;i<points.length;i++){
             for(int j = 0;j< points[i].length;j++){
                 Point  point = points[i][j];
@@ -222,10 +247,7 @@ public class LockPatternView extends View {
             this.y = y;
         }
 
-        public Point() {
-            this.x = x;
-            this.y = y;
-        }
+
 
         /**
          * 鼠标当前是否包含在一个点中
@@ -238,12 +260,94 @@ public class LockPatternView extends View {
          */
         public static boolean with(float pointX,float pointY,float r,float movingX,float movingY){
             //开方
-            return Math.sqrt((pointX-movingX)*(pointX-movingX)+(pointY-movingY)*(pointY-movingY)) < r;
+            return Math.sqrt((movingX-pointX)*(movingX-pointX)+(movingY-pointY)*(movingY-pointY)) < r;
         }
 
-        public static double distance (Point a ,Point b){
-            return Math.sqrt((Math.abs(a.x-b.x)*Math.abs(a.x-b.x))+(Math.abs(a.y-b.y)*Math.abs(a.y-b.y)));
+        /**
+         * 获取两点间距离
+         * @param x1
+         * @param y1
+         * @return
+         */
+        public static double distance(double x1,double y1,double x2,double y2)
+        {
+            return Math.sqrt(Math.abs(x1-x2)*Math.abs(x1-x2)+Math.abs(y1-y2)*Math.abs(y1-y2));
         }
+
+        public static float getDegrees(Point a, Point b){
+
+            float ax = a.x;// a.index % 3;
+            float ay = a.y;// a.index / 3;
+            float bx = b.x;// b.index % 3;
+            float by = b.y;// b.index / 3;
+            float degrees = 0;
+            if (bx == ax) //
+            {
+                if (by > ay) //
+                {
+                    degrees = 90;
+                }
+                else if (by < ay) //
+                {
+                    degrees = 270;
+                }
+            }
+            else if (by == ay) //
+            {
+                if (bx > ax) //
+                {
+                    degrees = 0;
+                }
+                else if (bx < ax) //
+                {
+                    degrees = 180;
+                }
+            }
+            else
+            {
+                if (bx > ax) //
+                {
+                    if (by > ay) //
+                    {
+                        degrees = 0;
+                        degrees = degrees + switchDegrees(Math.abs(by - ay), Math.abs(bx - ax));
+                    }
+                    else if (by < ay) //
+                    {
+                        degrees = 360;
+                        degrees = degrees - switchDegrees(Math.abs(by - ay), Math.abs(bx - ax));
+                    }
+
+                }
+                else if (bx < ax) // ��y������ 90~270
+                {
+                    if (by > ay) //
+                    {
+                        degrees = 90;
+                        degrees = degrees + switchDegrees(Math.abs(bx - ax), Math.abs(by - ay));
+                    }
+                    else if (by < ay) //
+                    {
+                        degrees = 270;
+                        degrees = degrees - switchDegrees(Math.abs(bx - ax), Math.abs(by - ay));
+                    }
+
+                }
+
+            }
+            return degrees;
+        }
+
+//        private static float switchDegrees(float x, float y) {
+//
+//            return (float) Math.toDegrees(Math.atan2(x,y));
+//        }
+
+        private static float switchDegrees(float x, float y)
+        {
+            return (float) Math.toDegrees(Math.atan2(x,y));
+        }
+
     }
 
 
