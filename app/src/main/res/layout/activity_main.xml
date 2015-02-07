@@ -4,6 +4,7 @@
     tools:context=".MainActivity">
 
 <com.boco.jersuendome.LockPatternView
+    android:id="@+id/mian_lv"
     android:layout_width="match_parent"
     android:layout_height="wrap_content" />
 

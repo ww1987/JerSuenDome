@@ -26,6 +26,8 @@ public class LockPatternView extends View {
     public Point[][] points = new Point[3][3];
     private boolean isInit,isSelect,isFinish,movingNoPoint;
 
+    private OnPatterChangeLisrener onPatterChangeLisrener;
+
     private float wight, height,offsetsX,offsetsY,movingX,movingY;
     private Bitmap pointNormal,pointPressed,pointError,lineError,linePressed;
     private int bitmapR;
@@ -146,6 +148,14 @@ public class LockPatternView extends View {
 
         bitmapR = pointNormal.getWidth()/2;
 
+        int index = 1;
+        for (Point[] points:this.points) {
+            for (Point point:points) {
+                point.index=index;
+                index++;
+            }
+        }
+
         isInit = true;
     }
 
@@ -196,6 +206,18 @@ public class LockPatternView extends View {
                 resetPoint();
             }else if(pointList.size() < POINT_SIZE && pointList.size() >1){
                 errorPoint();
+
+                if(onPatterChangeLisrener != null){
+                    onPatterChangeLisrener.onPatterChange(null);
+                }
+            }else{
+                if(onPatterChangeLisrener != null){
+                    StringBuffer passWord = new StringBuffer();
+                    for (Point p:pointList){
+                        passWord.append(p.index);
+                    }
+                    onPatterChangeLisrener.onPatterChange(passWord.toString());
+                }
             }
         }
 
@@ -350,5 +372,14 @@ public class LockPatternView extends View {
 
     }
 
+    public static interface OnPatterChangeLisrener{
+        void onPatterChange(String passWordS);
+    }
 
+    public void setOnPatterChangeLisrener(OnPatterChangeLisrener onPatterChangeLisrener ){
+
+        if (onPatterChangeLisrener != null){
+            this.onPatterChangeLisrener = onPatterChangeLisrener;
+        }
+    }
 }
